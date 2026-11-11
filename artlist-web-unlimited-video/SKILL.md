@@ -15,7 +15,7 @@ description: Generate videos in Artlist website Unlimited mode using Seedance 2.
 4. 用户要求保留完整提示词或测试其效果时，把适用的完整全局指导（如人物表演和风格）逐段保留，再附该段具体画面、动作、台词与声音；尽量保留相关原文，不擅自压缩。按段分配原台词，避免将全片同时塞入每个 5 秒镜头；时长与台词密度可能限制实际效果，不能保证模型逐字执行。
 5. 建立原始素材、上传类型、界面引用标签和用途的对应表。标签以网页实际分配为准，不假定文件顺序、图片顺序或不同模型的标签规则相同。确认提示词里的标签是网页识别的引用，且对应正确素材。
 
-若任一图片参考是故事板或分镜图，提交前按 [storyboard-video-reference-guard](../storyboard-video-reference-guard/SKILL.md) 复核，并确认防混入约束已经写进本条实际提交的提示词正文；不得只存在于素材清单或口头说明。
+若图片参考是故事板或分镜图，实际提交的提示词须说明：仅提取镜头内容，不复制格线、标签、字幕、拼贴版式；本条视频只表现指定镜头。提交前核对防混入约束已写入提示词正文。
 
 ## 模型分支
 
@@ -24,6 +24,17 @@ description: Generate videos in Artlist website Unlimited mode using Seedance 2.
 - **MiniMax H3 Max**：2026-11-05 在当前账户网页中选定 16:9、480p、5 秒后，Unlimited 显示开启；这只是设置与界面资格检查，并非该分支实际免费生成测试。当前素材菜单可选择图片和视频，音频参考呈禁用状态；这不代表生成视频必然无音轨。提交前重新检查素材类型、数量、音频生成选项和 Unlimited 资格，不把 Seedance 的多模态能力或操作结果直接套用到本模型。不要与 MiniMax H3 或 H3 Max Turbo 混淆。
 
 ## 网页提交
+
+### 本地参考素材上传规则
+
+- **遇到「打开菜单 → 选文件」被重渲染打断时，停止重试这一流程。** 首选真实 Chrome 独立登录 profile + Playwright CDP，重新定位对应类型的文件 input，使用 `locator.set_input_files(绝对路径或列表)`；这不需要系统选择框。若有多个 input，依据当前入口、accept/multiple 和所在容器确认目标，不盲用 first()/nth()。上传前清理本次无关素材，上传后确认完成状态、缩略图、类型与实际标签。
+- 这要求宿主可运行 Playwright 并连接本机 Chrome；只有截图点击的环境应先说明能力缺口，改从素材库选已入库素材。不能把 Artlist MCP 上传的 assetId 视为已挂载到网页，也不能推定 MCP 生成享有网页 Unlimited。
+- 本仓库生图脚本只覆盖 Nano Banana 2.1 图片参考，**不能用来生成视频或声称视频/音频上传已验证**。视频按当前模型入口定位 input；下面保留 Start Frame JPG 的历史单次 chooser 成功记录，仅作为限定备用路径。
+
+- 不要把图像生成页遇到的上传错误简单套到视频页：当前已有一次实测，Artlist Video 的 Start Frame → Upload Image 使用 Playwright `filechooser` / `chooser.setFiles` 上传本地 JPG 成功，并显示 Start Frame 缩略图。但这只证明该页面、该素材类型和该次状态可用，不保证其他模型、视频/音频参考入口或未来页面都相同。
+- 若当前 CDP 页面存在对应的 `input[type=file]`，优先通过 Playwright `set_input_files` 直接赋值，避免系统文件窗口；上传后确认素材缩略图、类型和网页实际标签。若对应输入不存在或路径不适用，Start Frame 图片可按下方已验证的 chooser 路径操作一次。
+- chooser 路径只在 Artlist 视频页面可见对应上传入口时使用：先监听 filechooser，再点击对应上传控件并 `chooser.setFiles(绝对路径)`；等待完成并核实缩略图。若出现 `element not visible`、页面状态变化、未出现 chooser 或上传未完成，不要连续重试同一路径，也不要提交缺少素材的生成；改用 CDP 隐藏 input（若存在），否则从网页素材库选择已入库素材；仍不可用时说明阻碍并停下。不要把 Image 页的历史失败当作视频页必然失败，也不要把视频 Start Frame 的成功推广成所有类型已验证。
+- 使用 Artlist 的 Use as → Extract Frame → Use Frame 路径时，素材由网页内部转接；仍需确认正确帧已作为 Start Frame 添加。
 
 1. 使用已登录的 Artlist 网页，在 Video 中选择用户指定的模型，设置实际支持的分辨率、时长、画幅和音频。检查 Unlimited 开关处于开启状态，且网页对本次设置显示适用 Unlimited 免费生成；不能根据旧记录推断当前价格或资格。
 2. 填入该镜头提示词，并按需要添加参考素材。提交前从网页实际状态核对模型、参数、参考和 Unlimited。若 Unlimited 不可用、额度受限或网页显示需要扣点，不要擅自改用付费生成；说明具体情况，由用户决定。
@@ -42,8 +53,7 @@ description: Generate videos in Artlist website Unlimited mode using Seedance 2.
 
 ## 已验证的浏览器素材上传与衔接
 
-- 在支持的浏览器控制环境中，先读取浏览器的 file-uploads 文档。打开网页实际显示的 Start Frame 或相应参考上传菜单，先监听 filechooser 事件，再点击 Upload Image，使用返回的 chooser.setFiles(本地绝对路径)。等待网页上传进度结束，确认正确的参考类型及缩略图后才提交。根据浏览器实际支持情况处理；不要绕过权限、认证或平台限制。
-- 本次在 Chrome 的 Artlist 界面验证：打开 Start Frame → Upload Image；使用浏览器 Playwright 文件选择事件和 setFiles 上传本地 JPG，网页显示 Uploading start，结束后显示 start — Start Frame。以上是实测路径，页面变化时以当前界面和工具文档为准。
+- 2026-11 实测：Chrome 的 Artlist Video 页面打开 Start Frame → Upload Image，使用 Playwright filechooser 事件和 `chooser.setFiles` 上传本地 JPG，页面从 `Uploading start` 变为 `start — Start Frame`。这是**单次、限定入口和 JPG 的验证**；遇到状态变化时遵循上方失败规则，不能声称视频、音频和其他模型入口均已验证。
 - 需要连续片段时，可在视频详情选择 Use as → Extract Frame，移动 Frame position 到末尾，使用 Use Frame → Start Frame；检查第二段的首帧已添加。尾帧引用有助于画面衔接，但生成后仍需检查运动、画面和音频接点。
 - 用户要求下载时，通过视频详情中的 Download 或支持的下载事件保存原片，记录文件与片段的对应关系。用户要求合成时保留原片，按目标时长剪接，检查分辨率、帧率、音轨、时长与实际接缝；清晰说明是否完成视听审片。
 
